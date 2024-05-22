@@ -7,15 +7,22 @@
 -- Table `db-theme-3`.`userMessage`
 -- -----------------------------------------------------
 DROP TABLE IF EXISTS `db-theme-3`.`userMessage` ;
-
 CREATE TABLE IF NOT EXISTS `db-theme-3`.`userMessage` (
   `userMessage.id` INT NOT NULL,
   `userMessage.text` VARCHAR(250) NOT NULL,
   `userMessage.time` DATETIME NOT NULL,
   PRIMARY KEY (`userMessage.id`))
+  INDEX `fk_userMessage_SupportRequest_idx` (`SupportRequest_SupportRequest.id` ASC) VISIBLE,
+  CONSTRAINT `fk_userMessage_SupportRequest`
+    FOREIGN KEY (`SupportRequest_SupportRequest.id`)
+    REFERENCES `mydb`.`SupportRequest` (`SupportRequest.id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
-
+-- -----------------------------------------------------
+-- Data for table `db-theme-3`.`userMessage`
+-- -----------------------------------------------------
 START TRANSACTION;
 USE `db-theme-3`;
 INSERT INTO `db-theme-3`.`userMessage` (`id`, `text`, `time`) VALUES (1, 'Question 1', '2024-04-19 12:34:56');
