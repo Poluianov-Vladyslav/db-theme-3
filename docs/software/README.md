@@ -13,6 +13,12 @@
        `Task.name` VARCHAR(255) NOT NULL,
        `Task.deadline` DATETIME NOT NULL,
        PRIMARY KEY (`Task.id`))
+       INDEX `fk_Task_User1_idx` (`User_User.id` ASC) VISIBLE,
+       CONSTRAINT `fk_Task_User1`
+        FOREIGN KEY (`User_User.id`)
+        REFERENCES `db-theme-3`.`User` (`User.id`)
+        ON DELETE NO ACTION
+        ON UPDATE NO ACTION,
      ENGINE = InnoDB;
 
     -- -----------------------------------------------------
