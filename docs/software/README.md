@@ -14,12 +14,6 @@ CREATE TABLE IF NOT EXISTS `db-theme-3`.`SupportRequest` (
         REFERENCES `db-theme-3`.`adminAnswer` (`adminAnswer.id`)
         ON DELETE NO ACTION
         ON UPDATE NO ACTION,
-    INDEX `fk_SupportRequest_History_idx` (`History_History.id` ASC) VISIBLE,
-    CONSTRAINT `fk_SupportRequest_History_idx`
-        FOREIGN KEY (`History_History.id`)
-        REFERENCES `db-theme-3`.`History` (`History.id`)
-        ON DELETE NO ACTION
-        ON UPDATE NO ACTION,
     INDEX `fk_SupportRequest_Client_idx` (`Client_Client.id` ASC) VISIBLE,
     CONSTRAINT `fk_SupportRequest_Client_idx`
         FOREIGN KEY (`Client_Client.id`)
