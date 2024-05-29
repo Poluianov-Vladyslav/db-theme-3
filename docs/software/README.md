@@ -1,7 +1,6 @@
 # Реалізація інформаційного та програмного забезпечення
 
-В рамках проекту розробляється:
-- SQL-скрипт для створення на початкового наповнення бази даних
+## SQL-скрипт для створення на початкового наповнення бази даних
 
 ```sql
 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
@@ -98,14 +97,14 @@ ENGINE = InnoDB;
 DROP TABLE IF EXISTS `db-theme-3`.`Task`;
 
 CREATE TABLE IF NOT EXISTS `db-theme-3`.`Task` (
-    `Task.id` INT NOT NULL ,
-    `Task.name` VARCHAR(255) NOT NULL,
-    `Task.deadline` DATETIME NOT NULL,
-    `Client_Client.id` INT NOT NULL,
-    PRIMARY KEY (`Task.id`),
-    INDEX `fk_Task_Client1_idx` (`Client_Client.id` ASC) VISIBLE,
+    `id` INT NOT NULL ,
+    `name` VARCHAR(255) NOT NULL,
+    `deadline` DATETIME NOT NULL,
+    `Client_id` INT NOT NULL,
+    PRIMARY KEY (`id`),
+    INDEX `fk_Task_Client1_idx` (`Client_id` ASC) VISIBLE,
     CONSTRAINT `fk_Task_Client1`
-    FOREIGN KEY (`Client_Client.id`)
+    FOREIGN KEY (`Client_id`)
     REFERENCES `db-theme-3`.`Client` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
@@ -214,9 +213,9 @@ COMMIT;
 
 START TRANSACTION;
 USE `db-theme-3`;
-INSERT INTO `db-theme-3`.`Task` (`Task.id`, `Task.name`, `Task.deadline`, `Client_Client.id`) VALUES (1, 'Task1', '2024-3-26', 1);
-INSERT INTO `db-theme-3`.`Task` (`Task.id`, `Task.name`, `Task.deadline`, `Client_Client.id`) VALUES (2, 'Task2', '2024-4-26', 2);
-INSERT INTO `db-theme-3`.`Task` (`Task.id`, `Task.name`, `Task.deadline`, `Client_Client.id`) VALUES (3, 'Task3', '2024-5-26', 3);
+INSERT INTO `db-theme-3`.`Task` (`id`, `name`, `deadline`, `Client_id`) VALUES (1, 'Task1', '2024-3-26', 1);
+INSERT INTO `db-theme-3`.`Task` (`id`, `name`, `deadline`, `Client_id`) VALUES (2, 'Task2', '2024-4-26', 2);
+INSERT INTO `db-theme-3`.`Task` (`id`, `name`, `deadline`, `Client_id`) VALUES (3, 'Task3', '2024-5-26', 3);
 COMMIT;
 
 START TRANSACTION;
@@ -227,6 +226,140 @@ INSERT INTO `db-theme-3`.`SupportRequest` (`SupportRequest.id`, `SupportRequest.
 COMMIT;
 ```
 
-- RESTfull сервіс для управління даними
+## RESTfull сервіс для управління даними
+app.py
+```python
+from flask import Flask
+from flask import request, jsonify
+from module import Task
 
+app = Flask(__name__)
+
+task = Task()
+
+@app.route("/task/all", methods=["GET"])
+def all_task():
+    result = task.all_task()
+    return jsonify(result), 200
+
+@app.route("/task/<id>", methods=["GET"])
+def get_user(id):
+    result = task.get_task(id)
+    return jsonify(result), 200
+
+@app.route("/task/add", methods=["POST"])
+def add_user():
+    data = request.get_json()
+    result = task.add_task(data)
+    return jsonify(result), 200
+
+@app.route("/task/update", methods=["PATCH"])
+def update_task():
+    data = request.get_json()
+    result = task.update_task(data)
+    return jsonify(result), 200
+
+@app.route("/task/delete/<id>", methods=["DELETE"])
+def delete_task(id):
+    result = task.delete_task(id)
+    return jsonify(result), 200
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+```
+module.py
+```python
+import mysql.connector
+
+class Task:
+    def __init__(self):
+        try:
+            self.con = mysql.connector.connect(host="localhost", user="root", passwd="AkfpsdJfs", database="db-theme-3")
+            print("Successful database connection")
+            self.cur = self.con.cursor(dictionary=True)
+        except mysql.connector.Error as err:
+            print("Database connection failed:", str(err))
+
+    def all_task(self):
+        try:
+            self.cur.execute("SELECT * FROM task")
+            result = self.cur.fetchall()
+            if self.cur.rowcount == 0:
+                return {"message": "There is no task", "error": "Not Found", "status_code": 404}
+            return {"data": result, "status_code": 200}
+        except mysql.connector.Error as err:
+            return {"message": str(err), "error": "Database Error", "status_code": 500}
+
+    def get_task(self, id):
+        if not str(id).isdigit():
+            return {"message": "ID not found", "error": "Bad Request", "status_code": 400}
+        try:
+            self.cur.execute("SELECT * FROM task WHERE id = %s", (id,))
+            result = self.cur.fetchall()
+            if self.cur.rowcount == 0:
+                return {"message": "This task does not exist", "error": "Not Found", "status_code": 404}
+            return {"data": result, "status_code": 200}
+        except mysql.connector.Error as err:
+            return {"message": str(err), "error": "Database Error", "status_code": 500}
+
+    def add_task(self, data):
+        data = dict(data)
+        required_keys = {'id', 'name', 'deadline', 'Client_id'}
+        if not required_keys.issubset(data):
+            return {"message": "Invalid or missing keys", "error": "Bad Request", "status_code": 400}
+        try:
+            query = "INSERT INTO task (Id, name, deadline, Client_id) VALUES (%s, %s, %s, %s)"
+            values = (data['id'], data['name'], data['deadline'], data['Client_id'])
+            self.cur.execute(query, values)
+            self.con.commit()
+            if self.cur.rowcount > 0:
+                return {"message": "Successfully added to database", "status_code": 200}
+            else:
+                return {"message": "Task was not added to database", "error": "Impossible", "status_code": 406}
+        except mysql.connector.Error as err:
+            self.con.rollback()
+            return {"message": "Failed to add task: " + str(err), "error": "Database Error", "status_code": 500}
+
+
+    def update_task(self, data):
+        data = dict(data)
+        if 'id' not in data:
+            return {"message": "Missing task id", "error": "Bad Request", "status_code": 400}
+        user_id = data['id']
+        del data['id']
+        if not data:
+            return {"message": "No data provided to update", "error": "Bad Request", "status_code": 400}
+        set_clause = ', '.join([f"{key} = %s" for key in data])
+        values = list(data.values())
+        values.append(user_id)
+        try:
+            query = f"UPDATE task SET {set_clause} WHERE Id = %s"
+            self.cur.execute(query, values)
+            self.con.commit()
+
+            if self.cur.rowcount > 0:
+                return {"message": "Successfully updated task", "status_code": 200}
+            else:
+                return {"message": "No changes made to task", "error": "Not Found", "status_code": 404}
+        except mysql.connector.Error as err:
+            self.con.rollback()
+            return {"message": "Failed to update task: " + str(err), "error": "Database Error", "status_code": 500}
+
+    def delete_task(self, id):
+        if not str(id).isdigit():
+            return {"message": "Invalid task id", "error": "Bad Request", "status_code": 400}
+        try:
+            self.cur.execute("DELETE FROM task WHERE Id = %s", (id,))
+            self.con.commit()
+
+            if self.cur.rowcount > 0:
+                return {"message": "Task was successfully deleted", "status_code": 200}
+            else:
+                return {"message": "Nothing to delete", "error": "Not Found", "status_code": 404}
+        except Exception as err:
+            self.con.rollback()
+            return {"message": "Failed to delete task", "error": str(err), "status_code": 500}
+```
 
